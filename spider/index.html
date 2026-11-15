@@ -31,6 +31,7 @@
       </div>
       <button id="undoBtn" class="btn" title="Undo (Ctrl+Z)">Undo</button>
       <button id="redoBtn" class="btn" title="Redo (Ctrl+Y or Ctrl+Shift+Z)">Redo</button>
+      <button id="settingsBtn" class="btn" title="Settings">⚙️ Settings</button>
       <button id="newGameBtn" class="btn">New Game</button>
     </div>
   </header>
@@ -46,6 +47,53 @@
 
     <!-- 10 Tableau Columns -->
     <div class="tableau-container" id="tableauContainer"></div>
+  </div>
+
+  <!-- Settings Modal Dialog -->
+  <div id="settingsOverlay" class="overlay hidden">
+    <div class="settings-modal">
+      <div class="settings-header">
+        <h3>Game Settings</h3>
+        <button id="closeSettingsBtn" class="close-btn" title="Close">&times;</button>
+      </div>
+
+      <div class="setting-item">
+        <label for="bgThemeSelect">Background Felt:</label>
+        <select id="bgThemeSelect">
+          <option value="classic-green">Classic Green Felt</option>
+          <option value="dark-slate">Dark Slate / Midnight</option>
+          <option value="royal-blue">Royal Blue</option>
+          <option value="burgundy">Burgundy Red</option>
+          <option value="emerald">Deep Emerald</option>
+        </select>
+      </div>
+
+      <div class="setting-item">
+        <label for="deckColorSelect">Deck / Card-Back Color:</label>
+        <select id="deckColorSelect">
+          <option value="classic-blue">Classic Navy Blue</option>
+          <option value="crimson-red">Crimson Red</option>
+          <option value="emerald-green">Emerald Green</option>
+          <option value="amethyst-purple">Amethyst Purple</option>
+          <option value="carbon-black">Carbon / Obsidian</option>
+        </select>
+      </div>
+
+      <div class="setting-item">
+        <label for="animSpeedSelect">Dealing Animation Speed:</label>
+        <select id="animSpeedSelect">
+          <option value="fast">Fast (20ms / 0.28s)</option>
+          <option value="normal" selected>Normal (50ms / 0.42s)</option>
+          <option value="slow">Slow (100ms / 0.8s)</option>
+          <option value="super-slow">Super Slow-Mo (200ms / 2.0s)</option>
+          <option value="instant">Instant (No Animation)</option>
+        </select>
+      </div>
+
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" class="btn" style="width: 100%;">Done</button>
+      </div>
+    </div>
   </div>
 
   <div id="winOverlay" class="overlay hidden">

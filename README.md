@@ -32,7 +32,6 @@ A classic Reversi / Othello board game.
 
 - **Zero External Dependencies**: No npm, no external JS frameworks, no CDNs, no remote fonts. Fast loading and works offline.
 - **Self-Contained**: Each game lives in its own dedicated subfolder with separated markup, styling, and logic.
-- **Hosted**: Served directly by a custom-built RFC-compliant C++ web server from the parent CAS project.
 
 ---
 

@@ -48,6 +48,95 @@ const difficultySelect = document.getElementById('difficultySelect');
 const banner = document.getElementById('banner');
 const winOverlay = document.getElementById('winOverlay');
 const winStats = document.getElementById('winStats');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const settingsBtn = document.getElementById('settingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const bgThemeSelect = document.getElementById('bgThemeSelect');
+const deckColorSelect = document.getElementById('deckColorSelect');
+const animSpeedSelect = document.getElementById('animSpeedSelect');
+
+const THEMES = {
+  'classic-green': 'radial-gradient(circle at 50% 20%, #1a6337, #0d381e)',
+  'dark-slate': 'radial-gradient(circle at 50% 20%, #1e293b, #0f172a)',
+  'royal-blue': 'radial-gradient(circle at 50% 20%, #1e3a8a, #0f172a)',
+  'burgundy': 'radial-gradient(circle at 50% 20%, #7f1d1d, #450a0a)',
+  'emerald': 'radial-gradient(circle at 50% 20%, #064e3b, #022c22)'
+};
+
+const DECKS = {
+  'classic-blue': { gradient: 'linear-gradient(135deg, #1e3a8a, #1d4ed8)', border: '#93c5fd' },
+  'crimson-red': { gradient: 'linear-gradient(135deg, #991b1b, #dc2626)', border: '#fca5a5' },
+  'emerald-green': { gradient: 'linear-gradient(135deg, #065f46, #059669)', border: '#6ee7b7' },
+  'amethyst-purple': { gradient: 'linear-gradient(135deg, #581c87, #7c3aed)', border: '#c4b5fd' },
+  'carbon-black': { gradient: 'linear-gradient(135deg, #18181b, #27272a)', border: '#71717a' }
+};
+
+const ANIM_SPEEDS = {
+  'fast': { stagger: 20, duration: '0.28s', cleanup: 300 },
+  'normal': { stagger: 50, duration: '0.42s', cleanup: 500 },
+  'slow': { stagger: 100, duration: '0.8s', cleanup: 900 },
+  'super-slow': { stagger: 200, duration: '2.0s', cleanup: 2200 },
+  'instant': { stagger: 0, duration: '0s', cleanup: 0 }
+};
+
+const PREFS_STORAGE_KEY = 'spider_solitaire_preferences';
+let userPrefs = {
+  bgTheme: 'classic-green',
+  deckColor: 'classic-blue',
+  animSpeed: 'normal'
+};
+
+function applyPreferences() {
+  const root = document.documentElement;
+  const bgGrad = THEMES[userPrefs.bgTheme] || THEMES['classic-green'];
+  root.style.setProperty('--bg-gradient', bgGrad);
+
+  const deck = DECKS[userPrefs.deckColor] || DECKS['classic-blue'];
+  root.style.setProperty('--deck-gradient', deck.gradient);
+  root.style.setProperty('--deck-border', deck.border);
+
+  const speed = ANIM_SPEEDS[userPrefs.animSpeed] || ANIM_SPEEDS['normal'];
+  root.style.setProperty('--deal-duration', speed.duration);
+
+  if (bgThemeSelect) {
+    bgThemeSelect.value = userPrefs.bgTheme;
+  }
+  if (deckColorSelect) {
+    deckColorSelect.value = userPrefs.deckColor;
+  }
+  if (animSpeedSelect) {
+    animSpeedSelect.value = userPrefs.animSpeed;
+  }
+}
+
+function loadPreferences() {
+  try {
+    const raw = localStorage.getItem(PREFS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed) {
+        if (parsed.bgTheme && THEMES[parsed.bgTheme]) {
+          userPrefs.bgTheme = parsed.bgTheme;
+        }
+        if (parsed.deckColor && DECKS[parsed.deckColor]) {
+          userPrefs.deckColor = parsed.deckColor;
+        }
+        if (parsed.animSpeed && ANIM_SPEEDS[parsed.animSpeed]) {
+          userPrefs.animSpeed = parsed.animSpeed;
+        }
+      }
+    }
+  } catch (e) { }
+  applyPreferences();
+}
+
+function savePreferences() {
+  try {
+    localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(userPrefs));
+  } catch (e) { }
+  applyPreferences();
+}
 
 let currentZoom = 100;
 const ZOOM_STORAGE_KEY = 'spider_solitaire_zoom';
@@ -426,14 +515,22 @@ function checkAndClearCompletedRuns() {
   }
 }
 
+let isDealing = false;
+
 function dealStock() {
-  if (stock.length === 0) return;
+  if (stock.length === 0 || isDealing) {
+    return;
+  }
 
   const hasEmptyCol = tableau.some(col => col.length === 0);
   if (hasEmptyCol) {
     showBanner("Cannot deal while any column is empty!");
     return;
   }
+
+  // Capture stock slot bounding box for source animation
+  const stockSlot = stockContainer.querySelector('.stock-slot');
+  const stockRect = stockSlot ? stockSlot.getBoundingClientRect() : null;
 
   saveState();
   const batch = stock.pop();
@@ -443,6 +540,54 @@ function dealStock() {
   moves++;
   checkAndClearCompletedRuns();
   updateUI();
+
+  // Animate the 10 newly dealt cards flying from the stock pile to their column positions
+  if (stockRect) {
+    isDealing = true;
+    const tableScale = currentZoom / 100;
+    const newlyDealtCards = [];
+
+    for (let i = 0; i < 10; i++) {
+      const colDiv = tableauContainer.children[i];
+      if (colDiv) {
+        const cards = colDiv.querySelectorAll('.card');
+        if (cards.length > 0) {
+          newlyDealtCards.push(cards[cards.length - 1]);
+        }
+      }
+    }
+
+    const speedConfig = ANIM_SPEEDS[userPrefs.animSpeed] || ANIM_SPEEDS['normal'];
+
+    if (userPrefs.animSpeed === 'instant') {
+      isDealing = false;
+      return;
+    }
+
+    newlyDealtCards.forEach((cardEl, idx) => {
+      const cardRect = cardEl.getBoundingClientRect();
+      const deltaX = (stockRect.left - cardRect.left) / tableScale;
+      const deltaY = (stockRect.top - cardRect.top) / tableScale;
+
+      cardEl.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(0.8)`;
+      cardEl.style.opacity = '0.5';
+      cardEl.classList.add('animating-deal');
+
+      setTimeout(() => {
+        cardEl.style.transform = 'translate(0, 0) scale(1)';
+        cardEl.style.opacity = '1';
+      }, idx * speedConfig.stagger + 15);
+
+      setTimeout(() => {
+        cardEl.classList.remove('animating-deal');
+        cardEl.style.transform = '';
+        cardEl.style.opacity = '';
+        if (idx === newlyDealtCards.length - 1) {
+          isDealing = false;
+        }
+      }, speedConfig.cleanup + idx * speedConfig.stagger);
+    });
+  }
 }
 
 function renderStock() {
@@ -767,7 +912,48 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+if (settingsBtn) {
+  settingsBtn.onclick = () => {
+    if (settingsOverlay) {
+      settingsOverlay.classList.remove('hidden');
+    }
+  };
+}
+if (closeSettingsBtn) {
+  closeSettingsBtn.onclick = () => {
+    if (settingsOverlay) {
+      settingsOverlay.classList.add('hidden');
+    }
+  };
+}
+if (saveSettingsBtn) {
+  saveSettingsBtn.onclick = () => {
+    if (settingsOverlay) {
+      settingsOverlay.classList.add('hidden');
+    }
+  };
+}
+if (bgThemeSelect) {
+  bgThemeSelect.onchange = () => {
+    userPrefs.bgTheme = bgThemeSelect.value;
+    savePreferences();
+  };
+}
+if (deckColorSelect) {
+  deckColorSelect.onchange = () => {
+    userPrefs.deckColor = deckColorSelect.value;
+    savePreferences();
+  };
+}
+if (animSpeedSelect) {
+  animSpeedSelect.onchange = () => {
+    userPrefs.animSpeed = animSpeedSelect.value;
+    savePreferences();
+  };
+}
+
 function initGame() {
+  loadPreferences();
   initDifficultySettings();
   initZoomSettings();
   if (!loadGameFromStorage()) {
