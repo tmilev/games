@@ -494,13 +494,32 @@ function renderTableau() {
     colDiv.ondragover = (e) => {
       e.preventDefault();
       colDiv.classList.add('drag-over');
+
+      if (draggedData && draggedData.fromCol !== colIdx) {
+        const movingCards = tableau[draggedData.fromCol].slice(draggedData.startIdx);
+        const topMoving = movingCards[0];
+        if (canDropOnCol(topMoving, colIdx)) {
+          const cardsInCol = colDiv.querySelectorAll('.card');
+          if (cardsInCol.length > 0) {
+            cardsInCol[cardsInCol.length - 1].classList.add('target-highlight');
+          }
+        }
+      }
     };
     colDiv.ondragleave = () => {
       colDiv.classList.remove('drag-over');
+      const highlighted = colDiv.querySelectorAll('.card.target-highlight');
+      highlighted.forEach((c) => {
+        c.classList.remove('target-highlight');
+      });
     };
     colDiv.ondrop = (e) => {
       e.preventDefault();
       colDiv.classList.remove('drag-over');
+      const highlighted = colDiv.querySelectorAll('.card.target-highlight');
+      highlighted.forEach((c) => {
+        c.classList.remove('target-highlight');
+      });
       handleDrop(colIdx);
     };
 
@@ -625,6 +644,10 @@ function createCardElement(card, colIdx, cardIndex) {
           c.classList.remove('is-dragging');
         });
       }
+      const allHighlighted = tableauContainer.querySelectorAll('.card.target-highlight');
+      allHighlighted.forEach((c) => {
+        c.classList.remove('target-highlight');
+      });
       draggedData = null;
     };
 

@@ -30,6 +30,5 @@ This repository hosts lightweight, zero-dependency browser games served by a cus
 2. **[Architecture & State](.agents/rules/architecture.md)**:
    - Each game lives in its own dedicated subfolder with cleanly separated files.
    - Synchronize game settings to both `localStorage` and URL parameters (URL parameter takes precedence; fallback to `localStorage` and sync to URL).
-   - Support undo/redo and auto-saving current board state.
 3. **[Git & Commits](.agents/rules/git.md)**:
    - Unless explicitly requested otherwise, commits made by the AI agent should start with the sparkles emoji, and a model name, as in: `✨<ModelFamily> <Flavor>: ` (for example `✨Gemini Flash: ...` or `✨Gemini Pro: ...`).
