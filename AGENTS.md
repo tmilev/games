@@ -2,24 +2,34 @@
 
 Welcome to the **Games Portal** repository. This document and the rules in [`.agents/rules/`](.agents/rules/) guide AI assistants and developers contributing to this codebase.
 
+## Repository Overview
+
+This repository hosts lightweight, zero-dependency browser games served by Todor's custom C++ web server (and available live at [milevi.org](https://milevi.org:8778/games/)).
+
 ## Directory Structure
 
-- `index.html`: Portal home page linking to all available games.
-- `emily.html`: Emily's Reversi canvas game.
+- `index.html`: Main game portal hub linking to all playable games.
+- `reversiemily/`: Emily's Reversi (a two-player / vs computer Reversi game written with Todor's daughter Emily).
+  - `emily.html`: Canvas game board and scoring UI.
+  - `reversiemily.js`: Game logic and AI moves.
 - `spider/`: Self-contained Spider Solitaire game.
-  - `index.html`: HTML layout for Spider Solitaire.
-  - `style.css`: All styling, animations, and card layouts.
-  - `spider.js`: Vanilla JavaScript game logic.
-- `.agents/rules/`: Rules and constraints for AI agents.
+  - `index.html`: Game UI and controls.
+  - `style.css`: Styling, card visuals, 4-corner symbols, and animations.
+  - `spider.js`: Game engine (drag-and-drop, validation, undo/redo, auto-save).
+- `.agents/`:
+  - `rules/codestyle.md`: Syntax rules (mandatory curly braces `{ ... }`, zero external dependencies).
+  - `rules/architecture.md`: State rules (URL params + `localStorage` dual-sync, subfolder layout).
+  - `rules/git.md`: Agent commit message formatting conventions.
+  - `rules/personal/`: Local, gitignored developer notes and preferences.
 
 ## Core Rules Summary
 
 1. **[Code Style](.agents/rules/codestyle.md)**:
-   - Always use explicit curly braces `{ ... }` on all `if`, `else`, `for`, and `while` statements.
-   - Zero external scripts, libraries, fonts, or CDNs. Pure vanilla JavaScript, CSS, and HTML only.
+   - **Always** use explicit curly braces `{ ... }` on all `if`, `else`, `for`, and `while` statements.
+   - **Zero external dependencies**: No CDNs, no external scripts or remote fonts. Pure native web technologies (HTML, CSS, Vanilla JS) only.
 2. **[Architecture & State](.agents/rules/architecture.md)**:
-   - Each game lives in its own dedicated subfolder with separate `.html`, `.css`, and `.js` files.
+   - Each game lives in its own dedicated subfolder with cleanly separated files.
    - Synchronize game settings to both `localStorage` and URL parameters (URL parameter takes precedence; fallback to `localStorage` and sync to URL).
-   - Support undo/redo where applicable.
+   - Support undo/redo and auto-saving current board state.
 3. **[Git & Commits](.agents/rules/git.md)**:
-   - Unless requested otherwise, all commits made by the AI agent must start with `✨<ModelName>: ` (e.g. `✨Gemini: ...`).
+   - Unless explicitly requested otherwise, all commits made by the AI agent must start with the sparkles emoji and model name: `✨<ModelName>: ` (e.g. `✨Gemini: ...`).
