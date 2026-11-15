@@ -566,8 +566,48 @@ function createCardElement(card, colIdx, cardIndex) {
       };
       e.dataTransfer.setData('text/plain', '');
       e.dataTransfer.effectAllowed = 'move';
+
+      // Build a ghost container holding all cards being dragged in the stack
+      const ghost = document.createElement('div');
+      ghost.style.position = 'absolute';
+      ghost.style.top = '-9999px';
+      ghost.style.left = '-9999px';
+      ghost.style.width = `${cardEl.offsetWidth || 85}px`;
+      ghost.style.pointerEvents = 'none';
+
+      const colDiv = tableauContainer.children[colIdx];
+      if (colDiv) {
+        const cardsInCol = colDiv.querySelectorAll('.card');
+        let ghostOffset = 0;
+        for (let i = cardIndex; i < cardsInCol.length; i++) {
+          const clone = cardsInCol[i].cloneNode(true);
+          clone.classList.remove('is-dragging');
+          clone.style.position = 'absolute';
+          clone.style.top = `${ghostOffset}px`;
+          clone.style.left = '0';
+          clone.style.width = '100%';
+          clone.style.zIndex = `${100 + i}`;
+          ghost.appendChild(clone);
+          ghostOffset += 26;
+        }
+        ghost.style.height = `${ghostOffset + (cardEl.offsetHeight || 120)}px`;
+      }
+      document.body.appendChild(ghost);
+
+      // Center the drag cursor slightly within the top grabbed card
+      const rect = cardEl.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      e.dataTransfer.setDragImage(ghost, clickX > 0 ? clickX : 20, clickY > 0 ? clickY : 20);
+
+      // Clean up ghost node after drag begins
       setTimeout(() => {
-        const colDiv = tableauContainer.children[colIdx];
+        if (ghost && ghost.parentNode) {
+          ghost.parentNode.removeChild(ghost);
+        }
+      }, 0);
+
+      setTimeout(() => {
         if (colDiv) {
           const cardsInCol = colDiv.querySelectorAll('.card');
           for (let i = cardIndex; i < cardsInCol.length; i++) {
