@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spider Solitaire</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="banner" class="banner">All columns must contain at least one card to deal!</div>
+
+  <header>
+    <div class="header-left">
+      <h1>Spider Solitaire</h1>
+      <a href="../index.html" class="nav-link">&larr; Back to Home</a>
+    </div>
+
+    <div class="controls">
+      <label for="difficultySelect">Suits: </label>
+      <select id="difficultySelect">
+        <option value="1" selected>1 Suit (Spades - Easy)</option>
+        <option value="2">2 Suits (Spades & Hearts - Medium)</option>
+        <option value="4">4 Suits (Hard)</option>
+      </select>
+      <div class="stat-badge">Moves: <span id="movesCount">0</span></div>
+      <div class="stat-badge">Score: <span id="scoreVal">500</span></div>
+      <button id="undoBtn" class="btn">Undo</button>
+      <button id="newGameBtn" class="btn">New Game</button>
+    </div>
+  </header>
+
+  <div class="table-container">
+    <div class="top-area">
+      <!-- Completed Runs (Foundations) -->
+      <div class="completed-sets-container" id="completedContainer"></div>
+
+      <!-- Stock piles (5 deals of 10 cards) -->
+      <div class="stock-container" id="stockContainer"></div>
+    </div>
+
+    <!-- 10 Tableau Columns -->
+    <div class="tableau-container" id="tableauContainer"></div>
+  </div>
+
+  <div id="winOverlay" class="overlay hidden">
+    <h2>Congratulations! 🎉</h2>
+    <p id="winStats">You cleared all 8 card sequences!</p>
+    <button id="winNewGameBtn" class="btn" style="font-size: 1.1rem; padding: 12px 30px;">Play Another Game</button>
+  </div>
+
+  <script src="spider.js"></script>
+</body>
+</html>
