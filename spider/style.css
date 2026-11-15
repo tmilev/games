@@ -109,6 +109,36 @@ select option {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transform-origin: top center;
+  transition: transform 0.15s ease-out;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+.zoom-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.zoom-btn:active {
+  transform: scale(0.95);
 }
 
 .top-area {
@@ -171,12 +201,14 @@ select option {
   cursor: default;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
-.card.face-down {
+.card.face-down,
+.stock-card {
   background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
   border: 1px solid #93c5fd;
   position: absolute;
 }
-.card.face-down::after {
+.card.face-down::after,
+.stock-card::after {
   content: "";
   position: absolute;
   inset: 4px;

@@ -30,19 +30,99 @@ let completedRuns = 0;
 let moves = 0;
 let score = 500;
 let moveHistory = [];
+let redoHistory = [];
 
 // Drag-and-drop state
 let draggedData = null; // { fromCol, startIdx, count }
 
 const tableauContainer = document.getElementById('tableauContainer');
+const tableContainerEl = document.querySelector('.table-container');
 const stockContainer = document.getElementById('stockContainer');
 const completedContainer = document.getElementById('completedContainer');
 const movesCountEl = document.getElementById('movesCount');
 const scoreValEl = document.getElementById('scoreVal');
+const zoomValEl = document.getElementById('zoomVal');
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomOutBtn = document.getElementById('zoomOutBtn');
 const difficultySelect = document.getElementById('difficultySelect');
 const banner = document.getElementById('banner');
 const winOverlay = document.getElementById('winOverlay');
 const winStats = document.getElementById('winStats');
+
+let currentZoom = 100;
+const ZOOM_STORAGE_KEY = 'spider_solitaire_zoom';
+
+function syncURLParams() {
+  try {
+    const url = new URL(window.location.href);
+    let changed = false;
+    if (url.searchParams.get('difficulty') !== String(difficulty)) {
+      url.searchParams.set('difficulty', String(difficulty));
+      changed = true;
+    }
+    if (url.searchParams.get('zoom') !== String(currentZoom)) {
+      url.searchParams.set('zoom', String(currentZoom));
+      changed = true;
+    }
+    if (changed) {
+      window.history.replaceState({}, '', url.toString());
+    }
+  } catch (e) { }
+}
+
+function applyZoom(val, updateStorageAndUrl = true) {
+  currentZoom = Math.min(180, Math.max(60, Math.round(val)));
+  if (tableContainerEl) {
+    tableContainerEl.style.transform = `scale(${currentZoom / 100})`;
+  }
+  if (zoomValEl) {
+    zoomValEl.textContent = `${currentZoom}%`;
+  }
+  if (updateStorageAndUrl) {
+    try {
+      localStorage.setItem(ZOOM_STORAGE_KEY, String(currentZoom));
+    } catch (e) { }
+    syncURLParams();
+  }
+}
+
+function initZoomSettings() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const paramZoom = urlParams.get('zoom');
+  let selectedZoom = null;
+
+  if (paramZoom) {
+    const parsed = parseInt(paramZoom, 10);
+    if (!isNaN(parsed) && parsed >= 50 && parsed <= 250) {
+      selectedZoom = parsed;
+      try {
+        localStorage.setItem(ZOOM_STORAGE_KEY, String(selectedZoom));
+      } catch (e) { }
+    }
+  }
+
+  if (selectedZoom === null) {
+    let stored = null;
+    try {
+      stored = localStorage.getItem(ZOOM_STORAGE_KEY);
+    } catch (e) { }
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed >= 50 && parsed <= 250) {
+        selectedZoom = parsed;
+      }
+    }
+  }
+
+  if (selectedZoom === null) {
+    selectedZoom = 100;
+    try {
+      localStorage.setItem(ZOOM_STORAGE_KEY, '100');
+    } catch (e) { }
+  }
+
+  applyZoom(selectedZoom, true);
+}
 
 function showBanner(text) {
   banner.textContent = text;
@@ -89,11 +169,24 @@ function saveState() {
     score
   };
   moveHistory.push(state);
-  if (moveHistory.length > 30) moveHistory.shift();
+  redoHistory = [];
+  if (moveHistory.length > 50) {
+    moveHistory.shift();
+  }
 }
 
 function undo() {
-  if (moveHistory.length === 0) return;
+  if (moveHistory.length === 0) {
+    return;
+  }
+  const currentState = {
+    tableau: tableau.map(col => col.map(c => ({ ...c }))),
+    stock: stock.map(batch => batch.map(c => ({ ...c }))),
+    completedRuns,
+    moves,
+    score
+  };
+  redoHistory.push(currentState);
   const prev = moveHistory.pop();
   tableau = prev.tableau;
   stock = prev.stock;
@@ -103,7 +196,81 @@ function undo() {
   updateUI();
 }
 
+function redo() {
+  if (redoHistory.length === 0) {
+    return;
+  }
+  const currentState = {
+    tableau: tableau.map(col => col.map(c => ({ ...c }))),
+    stock: stock.map(batch => batch.map(c => ({ ...c }))),
+    completedRuns,
+    moves,
+    score
+  };
+  moveHistory.push(currentState);
+  const next = redoHistory.pop();
+  tableau = next.tableau;
+  stock = next.stock;
+  completedRuns = next.completedRuns;
+  moves = next.moves;
+  score = next.score;
+  updateUI();
+}
+
 const STORAGE_KEY = 'spider_solitaire_difficulty';
+const GAME_STATE_KEY = 'spider_solitaire_current_game';
+
+function saveGameToStorage() {
+  try {
+    const data = {
+      difficulty,
+      tableau,
+      stock,
+      completedRuns,
+      moves,
+      score,
+      moveHistory,
+      redoHistory
+    };
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify(data));
+  } catch (e) { }
+}
+
+function loadGameFromStorage() {
+  try {
+    const raw = localStorage.getItem(GAME_STATE_KEY);
+    if (!raw) {
+      return false;
+    }
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.tableau) || data.tableau.length !== 10) {
+      return false;
+    }
+    // Check if the saved game matches the current active difficulty
+    if (data.difficulty !== difficulty) {
+      return false;
+    }
+
+    tableau = data.tableau;
+    stock = data.stock || [];
+    completedRuns = data.completedRuns || 0;
+    moves = data.moves || 0;
+    score = typeof data.score === 'number' ? data.score : 500;
+    moveHistory = data.moveHistory || [];
+    redoHistory = data.redoHistory || [];
+    winOverlay.classList.add('hidden');
+    updateUI();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function clearGameFromStorage() {
+  try {
+    localStorage.removeItem(GAME_STATE_KEY);
+  } catch (e) { }
+}
 
 function syncDifficultyURL(val) {
   try {
@@ -150,10 +317,11 @@ function initDifficultySettings() {
 
 function onDifficultyChanged() {
   const selected = parseInt(difficultySelect.value, 10);
+  difficulty = selected;
   try {
     localStorage.setItem(STORAGE_KEY, String(selected));
   } catch (e) { }
-  syncDifficultyURL(selected);
+  syncURLParams();
   startNewGame();
 }
 
@@ -167,6 +335,7 @@ function startNewGame() {
   moves = 0;
   score = 500;
   moveHistory = [];
+  redoHistory = [];
   winOverlay.classList.add('hidden');
 
   let cardIdx = 0;
@@ -397,11 +566,25 @@ function createCardElement(card, colIdx, cardIndex) {
       };
       e.dataTransfer.setData('text/plain', '');
       e.dataTransfer.effectAllowed = 'move';
-      setTimeout(() => cardEl.classList.add('is-dragging'), 0);
+      setTimeout(() => {
+        const colDiv = tableauContainer.children[colIdx];
+        if (colDiv) {
+          const cardsInCol = colDiv.querySelectorAll('.card');
+          for (let i = cardIndex; i < cardsInCol.length; i++) {
+            cardsInCol[i].classList.add('is-dragging');
+          }
+        }
+      }, 0);
     };
 
     cardEl.ondragend = () => {
-      cardEl.classList.remove('is-dragging');
+      const colDiv = tableauContainer.children[colIdx];
+      if (colDiv) {
+        const draggingCards = colDiv.querySelectorAll('.card.is-dragging');
+        draggingCards.forEach((c) => {
+          c.classList.remove('is-dragging');
+        });
+      }
       draggedData = null;
     };
 
@@ -486,12 +669,47 @@ function updateUI() {
   renderStock();
   renderCompleted();
   renderTableau();
+  saveGameToStorage();
 }
 
 document.getElementById('newGameBtn').onclick = startNewGame;
 document.getElementById('winNewGameBtn').onclick = startNewGame;
 document.getElementById('undoBtn').onclick = undo;
+document.getElementById('redoBtn').onclick = redo;
+if (zoomInBtn) {
+  zoomInBtn.onclick = () => {
+    applyZoom(currentZoom + 10);
+  };
+}
+if (zoomOutBtn) {
+  zoomOutBtn.onclick = () => {
+    applyZoom(currentZoom - 10);
+  };
+}
 difficultySelect.onchange = onDifficultyChanged;
 
-initDifficultySettings();
-startNewGame();
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+    } else if (e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      redo();
+    }
+  }
+});
+
+function initGame() {
+  initDifficultySettings();
+  initZoomSettings();
+  if (!loadGameFromStorage()) {
+    startNewGame();
+  }
+}
+
+initGame();

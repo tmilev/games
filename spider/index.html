@@ -24,7 +24,13 @@
       </select>
       <div class="stat-badge">Moves: <span id="movesCount">0</span></div>
       <div class="stat-badge">Score: <span id="scoreVal">500</span></div>
-      <button id="undoBtn" class="btn">Undo</button>
+      <div class="stat-badge zoom-controls">
+        <button id="zoomOutBtn" class="zoom-btn" title="Zoom Out">&minus;</button>
+        <span id="zoomVal">100%</span>
+        <button id="zoomInBtn" class="zoom-btn" title="Zoom In">&plus;</button>
+      </div>
+      <button id="undoBtn" class="btn" title="Undo (Ctrl+Z)">Undo</button>
+      <button id="redoBtn" class="btn" title="Redo (Ctrl+Y or Ctrl+Shift+Z)">Redo</button>
       <button id="newGameBtn" class="btn">New Game</button>
     </div>
   </header>
