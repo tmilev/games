@@ -27,6 +27,7 @@ This repository hosts lightweight, zero-dependency browser games served by a cus
 1. **[Code Style](.agents/rules/codestyle.md)**:
    - **Always** use explicit curly braces `{ ... }` on all `if`, `else`, `for`, and `while` statements.
    - **Zero external dependencies**: No CDNs, no external scripts or remote fonts. Pure native web technologies (HTML, CSS, Vanilla JS) only.
+   - **Strictly no `innerHTML`**: Build DOM structures explicitly with `document.createElement(...)`, `textContent`, and `appendChild(...)` (Closure Compiler / Trusted Types compliance).
 2. **[Architecture & State](.agents/rules/architecture.md)**:
    - Each game lives in its own dedicated subfolder with cleanly separated files.
    - Synchronize game settings to both `localStorage` and URL parameters (URL parameter takes precedence; fallback to `localStorage` and sync to URL).
