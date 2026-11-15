@@ -21,3 +21,5 @@ Welcome to the **Games Portal** repository. This document and the rules in [`.ag
    - Each game lives in its own dedicated subfolder with separate `.html`, `.css`, and `.js` files.
    - Synchronize game settings to both `localStorage` and URL parameters (URL parameter takes precedence; fallback to `localStorage` and sync to URL).
    - Support undo/redo where applicable.
+3. **[Git & Commits](.agents/rules/git.md)**:
+   - Unless requested otherwise, all commits made by the AI agent must start with `✨<ModelName>: ` (e.g. `✨Gemini: ...`).
