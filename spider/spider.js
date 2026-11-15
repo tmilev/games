@@ -1,5 +1,5 @@
 /**
- * Built by Gemini+Antigravity with prompting by Todor.
+ * Built by Gemini+Antigravity.
  *
  * Prompts history:
  * 1. ... make me a spider solitaire game.

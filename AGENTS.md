@@ -4,12 +4,12 @@ Welcome to the **Games Portal** repository. This document and the rules in [`.ag
 
 ## Repository Overview
 
-This repository hosts lightweight, zero-dependency browser games served by Todor's custom C++ web server (and available live at [milevi.org](https://milevi.org:8778/games/)).
+This repository hosts lightweight, zero-dependency browser games served by a custom C++ web server (and available live at [milevi.org](https://milevi.org:8778/games/index.html)).
 
 ## Directory Structure
 
 - `index.html`: Main game portal hub linking to all playable games.
-- `reversiemily/`: Emily's Reversi (a two-player / vs computer Reversi game written with Todor's daughter Emily).
+- `reversiemily/`: Emily's Reversi (a two-player / vs computer Reversi game).
   - `emily.html`: Canvas game board and scoring UI.
   - `reversiemily.js`: Game logic and AI moves.
 - `spider/`: Self-contained Spider Solitaire game.
@@ -32,4 +32,4 @@ This repository hosts lightweight, zero-dependency browser games served by Todor
    - Synchronize game settings to both `localStorage` and URL parameters (URL parameter takes precedence; fallback to `localStorage` and sync to URL).
    - Support undo/redo and auto-saving current board state.
 3. **[Git & Commits](.agents/rules/git.md)**:
-   - Unless explicitly requested otherwise, all commits made by the AI agent must start with the sparkles emoji and model name: `✨<ModelName>: ` (e.g. `✨Gemini: ...`).
+   - Unless explicitly requested otherwise, commits made by the AI agent should start with the sparkles emoji, and a model name, as in: `✨<ModelFamily> <Flavor>: ` (for example `✨Gemini Flash: ...` or `✨Gemini Pro: ...`).

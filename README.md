@@ -2,7 +2,7 @@
 
 A collection of lightweight, zero-dependency browser games created with pure HTML5, CSS3, and Vanilla JavaScript.
 
-🌐 **Live Demo:** [https://milevi.org:8778/games/](https://milevi.org:8778/games/)
+🌐 **Live Demo:** [https://milevi.org:8778/games/index.html](https://milevi.org:8778/games/index.html)
 
 ---
 
@@ -22,9 +22,8 @@ A full-featured Spider Solitaire card game.
 - **Cards**: Rendered with HTML/CSS DOM elements displaying rank and suit in all four corners.
 
 ### 2. [Emily's Reversi](reversiemily/)
-A classic Reversi / Othello board game crafted by Todor and his daughter Emily.
+A classic Reversi / Othello board game.
 - Playable player vs. computer.
-- Multiple color schemes (Emily's scheme and Evelyn's scheme).
 - Built on HTML5 Canvas.
 
 ---
@@ -33,7 +32,7 @@ A classic Reversi / Othello board game crafted by Todor and his daughter Emily.
 
 - **Zero External Dependencies**: No npm, no external JS frameworks, no CDNs, no remote fonts. Fast loading and works offline.
 - **Self-Contained**: Each game lives in its own dedicated subfolder with separated markup, styling, and logic.
-- **Hosted**: Served directly by Todor's custom-built RFC-compliant C++ web server from the parent CAS project.
+- **Hosted**: Served directly by a custom-built RFC-compliant C++ web server from the parent CAS project.
 
 ---
 
