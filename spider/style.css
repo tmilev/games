@@ -250,7 +250,7 @@ select option {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 4px;
+  padding: 2px 4px 4px 4px;
   cursor: default;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
@@ -298,7 +298,7 @@ select option {
 .card-corner {
   display: flex;
   flex-direction: column;
-  line-height: 1;
+  line-height: 0.95;
 }
 .corner-tl {
   align-items: flex-start;
@@ -315,11 +315,14 @@ select option {
   transform: rotate(180deg);
 }
 .card-rank {
-  font-size: clamp(0.7rem, 1.2vw, 0.95rem);
+  font-size: clamp(0.72rem, 1.25vw, 0.98rem);
   font-weight: 800;
+  line-height: 1;
 }
 .card-suit {
-  font-size: clamp(0.65rem, 1.1vw, 0.9rem);
+  font-size: clamp(0.68rem, 1.15vw, 0.94rem);
+  line-height: 1;
+  margin-top: -1px;
 }
 .card-center {
   align-self: center;

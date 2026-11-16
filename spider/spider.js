@@ -51,6 +51,7 @@ const STORAGE_KEY = 'spider_solitaire_difficulty';
 const GAME_STATE_KEY = 'spider_solitaire_current_game';
 const ZOOM_STORAGE_KEY = 'spider_solitaire_zoom';
 const PREFS_STORAGE_KEY = 'spider_solitaire_preferences';
+const GAMES_WON_KEY = 'spider_solitaire_games_won';
 
 /**
  * Class representing an individual playing card.
@@ -157,7 +158,8 @@ class SpiderSolitaire {
     this.stock = [];
     this.completedRuns = 0;
     this.moves = 0;
-    this.score = 500;
+    this.gamesWon = this.loadGamesWon();
+    this.gameWonRecorded = false;
     this.moveHistory = [];
     this.redoHistory = [];
 
@@ -178,7 +180,7 @@ class SpiderSolitaire {
     this.stockContainer = document.getElementById('stockContainer');
     this.completedContainer = document.getElementById('completedContainer');
     this.movesCountEl = document.getElementById('movesCount');
-    this.scoreValEl = document.getElementById('scoreVal');
+    this.gamesWonValEl = document.getElementById('gamesWonVal');
     this.zoomValEl = document.getElementById('zoomVal');
     this.zoomInBtn = document.getElementById('zoomInBtn');
     this.zoomOutBtn = document.getElementById('zoomOutBtn');
@@ -246,40 +248,14 @@ class SpiderSolitaire {
     return deck;
   }
 
-  saveState() {
-    const state = {
-      tableau: this.tableau.map(col => col.map(c => c.toJSON())),
-      stock: this.stock.map(batch => batch.map(c => c.toJSON())),
-      completedRuns: this.completedRuns,
-      moves: this.moves,
-      score: this.score
-    };
-    this.moveHistory.push(state);
-    this.redoHistory = [];
-    if (this.moveHistory.length > 50) {
-      this.moveHistory.shift();
-    }
-  }
-
   undo() {
     this.cancelDealAnimation();
     if (this.moveHistory.length === 0) {
       return;
     }
-    const currentState = {
-      tableau: this.tableau.map(col => col.map(c => c.toJSON())),
-      stock: this.stock.map(batch => batch.map(c => c.toJSON())),
-      completedRuns: this.completedRuns,
-      moves: this.moves,
-      score: this.score
-    };
-    this.redoHistory.push(currentState);
-    const prev = this.moveHistory.pop();
-    this.tableau = prev.tableau.map(col => col.map(c => Card.fromJSON(c)));
-    this.stock = prev.stock.map(batch => batch.map(c => Card.fromJSON(c)));
-    this.completedRuns = prev.completedRuns;
-    this.moves = prev.moves;
-    this.score = prev.score;
+    const action = this.moveHistory.pop();
+    this.applyAction(action, true);
+    this.redoHistory.push(action);
     this.updateUI();
   }
 
@@ -288,21 +264,115 @@ class SpiderSolitaire {
     if (this.redoHistory.length === 0) {
       return;
     }
-    const currentState = {
-      tableau: this.tableau.map(col => col.map(c => c.toJSON())),
-      stock: this.stock.map(batch => batch.map(c => c.toJSON())),
-      completedRuns: this.completedRuns,
-      moves: this.moves,
-      score: this.score
-    };
-    this.moveHistory.push(currentState);
-    const next = this.redoHistory.pop();
-    this.tableau = next.tableau.map(col => col.map(c => Card.fromJSON(c)));
-    this.stock = next.stock.map(batch => batch.map(c => Card.fromJSON(c)));
-    this.completedRuns = next.completedRuns;
-    this.moves = next.moves;
-    this.score = next.score;
+    const action = this.redoHistory.pop();
+    this.applyAction(action, false);
+    this.moveHistory.push(action);
     this.updateUI();
+  }
+
+  recordAction(action) {
+    this.moveHistory.push(action);
+    this.redoHistory = [];
+    if (this.moveHistory.length > 5000) {
+      this.moveHistory.shift();
+    }
+  }
+
+  loadGamesWon() {
+    try {
+      const val = localStorage.getItem(GAMES_WON_KEY);
+      return val ? parseInt(val, 10) || 0 : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  saveGamesWon() {
+    try {
+      localStorage.setItem(GAMES_WON_KEY, String(this.gamesWon));
+    } catch (e) { }
+  }
+
+  applyAction(action, isUndo) {
+    if (action.type === 'move') {
+      if (isUndo) {
+        // Reverse cleared completed runs first if any occurred on this move
+        if (action.clearedRuns && action.clearedRuns.length > 0) {
+          action.clearedRuns.forEach((run) => {
+            const restoredCards = run.cards.map(c => Card.fromJSON(c));
+            this.tableau[run.colIdx].splice(run.startIdx, 0, ...restoredCards);
+            this.completedRuns--;
+          });
+        }
+
+        // Pop moving cards from target column and return to source column
+        const cardsToReturn = this.tableau[action.toCol].splice(this.tableau[action.toCol].length - action.count, action.count);
+        this.tableau[action.fromCol].push(...cardsToReturn);
+
+        // If this move turned up a card in source column, turn it back face-down
+        if (action.turnedCard) {
+          const cardBelow = this.tableau[action.fromCol][action.fromColCardIdxBefore];
+          if (cardBelow) {
+            cardBelow.faceUp = false;
+          }
+        }
+
+        this.moves = Math.max(0, this.moves - 1);
+      } else {
+        // Reapply the move
+        const movingCards = this.tableau[action.fromCol].splice(this.tableau[action.fromCol].length - action.count, action.count);
+        this.tableau[action.toCol].push(...movingCards);
+
+        if (action.turnedCard) {
+          const cardBelow = this.tableau[action.fromCol][action.fromColCardIdxBefore];
+          if (cardBelow) {
+            cardBelow.faceUp = true;
+          }
+        }
+
+        if (action.clearedRuns && action.clearedRuns.length > 0) {
+          action.clearedRuns.forEach((run) => {
+            this.tableau[run.colIdx].splice(run.startIdx, 13);
+            this.completedRuns++;
+          });
+        }
+
+        this.moves++;
+      }
+    } else if (action.type === 'deal') {
+      if (isUndo) {
+        if (action.clearedRuns && action.clearedRuns.length > 0) {
+          action.clearedRuns.forEach((run) => {
+            const restoredCards = run.cards.map(c => Card.fromJSON(c));
+            this.tableau[run.colIdx].splice(run.startIdx, 0, ...restoredCards);
+            this.completedRuns--;
+          });
+        }
+
+        // Pop the 10 dealt cards from columns 9 down to 0 and push back to stock
+        const returnedBatch = [];
+        for (let i = 9; i >= 0; i--) {
+          const c = this.tableau[i].pop();
+          returnedBatch.unshift(c);
+        }
+        this.stock.push(returnedBatch);
+        this.moves = Math.max(0, this.moves - 1);
+      } else {
+        // Reapply deal
+        const batch = this.stock.pop();
+        for (let i = 0; i < 10; i++) {
+          this.tableau[i].push(batch[i]);
+        }
+
+        if (action.clearedRuns && action.clearedRuns.length > 0) {
+          action.clearedRuns.forEach((run) => {
+            this.tableau[run.colIdx].splice(run.startIdx, 13);
+            this.completedRuns++;
+          });
+        }
+        this.moves++;
+      }
+    }
   }
 
   saveGameToStorage() {
@@ -313,7 +383,6 @@ class SpiderSolitaire {
         stock: this.stock.map(batch => batch.map(c => c.toJSON())),
         completedRuns: this.completedRuns,
         moves: this.moves,
-        score: this.score,
         moveHistory: this.moveHistory,
         redoHistory: this.redoHistory
       };
@@ -339,7 +408,6 @@ class SpiderSolitaire {
       this.stock = (data.stock || []).map(batch => batch.map(c => Card.fromJSON(c)));
       this.completedRuns = data.completedRuns || 0;
       this.moves = data.moves || 0;
-      this.score = typeof data.score === 'number' ? data.score : 500;
       this.moveHistory = data.moveHistory || [];
       this.redoHistory = data.redoHistory || [];
       this.winOverlay.classList.add('hidden');
@@ -513,7 +581,7 @@ class SpiderSolitaire {
     this.stock = [];
     this.completedRuns = 0;
     this.moves = 0;
-    this.score = 500;
+    this.gameWonRecorded = false;
     this.moveHistory = [];
     this.redoHistory = [];
     this.winOverlay.classList.add('hidden');
@@ -578,7 +646,7 @@ class SpiderSolitaire {
   }
 
   checkAndClearCompletedRuns() {
-    let anyCleared = false;
+    const clearedRuns = [];
     for (let c = 0; c < 10; c++) {
       const col = this.tableau[c];
       if (col.length < 13) {
@@ -601,10 +669,13 @@ class SpiderSolitaire {
         }
 
         if (isComplete) {
-          col.splice(start, 13);
+          const removedCards = col.splice(start, 13);
+          clearedRuns.push({
+            colIdx: c,
+            startIdx: start,
+            cards: removedCards.map(card => card.toJSON())
+          });
           this.completedRuns++;
-          this.score += 100;
-          anyCleared = true;
 
           if (col.length > 0 && !col[col.length - 1].faceUp) {
             col[col.length - 1].faceUp = true;
@@ -614,12 +685,19 @@ class SpiderSolitaire {
       }
     }
 
-    if (anyCleared) {
+    if (clearedRuns.length > 0) {
       if (this.completedRuns === 8) {
-        this.winStats.textContent = `Completed in ${this.moves} moves with a score of ${this.score}!`;
+        if (!this.gameWonRecorded) {
+          this.gameWonRecorded = true;
+          this.gamesWon++;
+          this.saveGamesWon();
+          this.gamesWonValEl.textContent = this.gamesWon;
+        }
+        this.winStats.textContent = `Completed in ${this.moves} moves! Total games won: ${this.gamesWon}.`;
         this.winOverlay.classList.remove('hidden');
       }
     }
+    return clearedRuns;
   }
 
   dealStock() {
@@ -636,13 +714,17 @@ class SpiderSolitaire {
     const stockSlot = this.stockContainer.querySelector('.stock-slot');
     const stockRect = stockSlot ? stockSlot.getBoundingClientRect() : null;
 
-    this.saveState();
     const batch = this.stock.pop();
     for (let i = 0; i < 10; i++) {
       this.tableau[i].push(batch[i]);
     }
     this.moves++;
-    this.checkAndClearCompletedRuns();
+    const clearedRuns = this.checkAndClearCompletedRuns();
+
+    this.recordAction({
+      type: 'deal',
+      clearedRuns: clearedRuns
+    });
 
     if (stockRect) {
       this.isDealing = true;
@@ -651,7 +733,7 @@ class SpiderSolitaire {
       this.renderTableau(true);
       this.saveGameToStorage();
       this.movesCountEl.textContent = this.moves;
-      this.scoreValEl.textContent = this.score;
+      this.gamesWonValEl.textContent = this.gamesWon;
 
       const tableScale = this.currentZoom / 100;
       const newlyDealtCards = [];
@@ -764,6 +846,65 @@ class SpiderSolitaire {
     }
   }
 
+  computeColumnOffsets(colCards) {
+    const totalCards = colCards.length;
+    if (totalCards === 0) {
+      return { offsets: [], stepFaceUp: 30, totalHeight: 125 };
+    }
+
+    const defaultFaceUp = 30;
+    const defaultFaceDown = 15;
+    const cardHeight = 120; // approximate card height in CSS
+    const bottomPadding = 20;
+
+    // Available height in unscaled table-container pixels
+    let availableHeight = 550;
+    if (this.tableauContainer) {
+      const rect = this.tableauContainer.getBoundingClientRect();
+      const scale = (this.currentZoom || 100) / 100;
+      // Distance from top of tableauContainer to bottom of viewport
+      const viewportRemainingPx = window.innerHeight - rect.top - bottomPadding;
+      availableHeight = Math.max(200, viewportRemainingPx / scale);
+    }
+
+    let downCount = 0;
+    let upCount = 0;
+    colCards.forEach((c) => {
+      if (c.faceUp) {
+        upCount++;
+      } else {
+        downCount++;
+      }
+    });
+
+    // The last card needs its full cardHeight.
+    // So all earlier cards span: (downCount * stepDown) + ((upCount - 1) * stepFaceUp) + cardHeight
+    const uncompressedHeight = (downCount * defaultFaceDown) + (Math.max(0, upCount - 1) * defaultFaceUp) + cardHeight;
+
+    let stepFaceDown = defaultFaceDown;
+    let stepFaceUp = defaultFaceUp;
+
+    if (uncompressedHeight > availableHeight && totalCards > 1) {
+      // Need to compress to fit within availableHeight
+      const targetSpan = Math.max(totalCards * 6, availableHeight - cardHeight);
+      const ratio = targetSpan / (uncompressedHeight - cardHeight);
+      stepFaceDown = Math.max(6, Math.min(defaultFaceDown, defaultFaceDown * ratio));
+      stepFaceUp = Math.max(12, Math.min(defaultFaceUp, defaultFaceUp * ratio));
+    }
+
+    const offsets = [];
+    let current = 0;
+    colCards.forEach((card, idx) => {
+      offsets.push(current);
+      if (idx < totalCards - 1) {
+        current += card.faceUp ? stepFaceUp : stepFaceDown;
+      }
+    });
+
+    const totalHeight = Math.max(125, current + cardHeight);
+    return { offsets, stepFaceUp, totalHeight };
+  }
+
   renderTableau(dealingCardsIndices = null) {
     this.tableauContainer.textContent = '';
 
@@ -806,20 +947,21 @@ class SpiderSolitaire {
         this.handleDrop(colIdx);
       };
 
-      let currentTopOffset = 0;
+      const { offsets, stepFaceUp, totalHeight } = this.computeColumnOffsets(colCards);
+      colDiv.dataset.stepFaceUp = stepFaceUp;
+
       colCards.forEach((card, cardIndex) => {
         const cardEl = card.createDOMElement(colIdx, cardIndex, this);
-        cardEl.style.top = `${currentTopOffset}px`;
+        cardEl.style.top = `${offsets[cardIndex]}px`;
 
         if (dealingCardsIndices && cardIndex === colCards.length - 1) {
           cardEl.style.visibility = 'hidden';
         }
 
         colDiv.appendChild(cardEl);
-        currentTopOffset += card.faceUp ? 26 : 14;
       });
 
-      colDiv.style.minHeight = `${Math.max(125, currentTopOffset + 115)}px`;
+      colDiv.style.minHeight = `${totalHeight}px`;
       this.tableauContainer.appendChild(colDiv);
     });
   }
@@ -844,6 +986,7 @@ class SpiderSolitaire {
     const colDiv = this.tableauContainer.children[colIdx];
     if (colDiv) {
       const cardsInCol = colDiv.querySelectorAll('.card');
+      const stepFaceUp = parseFloat(colDiv.dataset.stepFaceUp) || 26;
       let ghostOffset = 0;
       for (let i = cardIndex; i < cardsInCol.length; i++) {
         const clone = cardsInCol[i].cloneNode(true);
@@ -854,7 +997,7 @@ class SpiderSolitaire {
         clone.style.width = '100%';
         clone.style.zIndex = `${100 + i}`;
         ghost.appendChild(clone);
-        ghostOffset += 26;
+        ghostOffset += stepFaceUp;
       }
       ghost.style.height = `${ghostOffset + (cardEl.offsetHeight || 120)}px`;
     }
@@ -900,7 +1043,7 @@ class SpiderSolitaire {
     if (!this.draggedData) {
       return;
     }
-    const { fromCol, startIdx } = this.draggedData;
+    const { fromCol, startIdx, count } = this.draggedData;
     if (fromCol === targetColIdx) {
       return;
     }
@@ -909,18 +1052,33 @@ class SpiderSolitaire {
     const topMovingCard = movingCards[0];
 
     if (this.canDropOnCol(topMovingCard, targetColIdx)) {
-      this.saveState();
+      const sourceCol = this.tableau[fromCol];
+      let turnedCard = false;
+      const cardIdxBefore = startIdx - 1;
+      if (cardIdxBefore >= 0 && !sourceCol[cardIdxBefore].faceUp) {
+        turnedCard = true;
+      }
+
       this.tableau[fromCol].splice(startIdx);
       this.tableau[targetColIdx].push(...movingCards);
 
-      const sourceCol = this.tableau[fromCol];
-      if (sourceCol.length > 0 && !sourceCol[sourceCol.length - 1].faceUp) {
-        sourceCol[sourceCol.length - 1].faceUp = true;
+      if (turnedCard) {
+        sourceCol[cardIdxBefore].faceUp = true;
       }
 
       this.moves++;
-      this.score = Math.max(0, this.score - 1);
-      this.checkAndClearCompletedRuns();
+      const clearedRuns = this.checkAndClearCompletedRuns();
+
+      this.recordAction({
+        type: 'move',
+        fromCol: fromCol,
+        toCol: targetColIdx,
+        count: count,
+        turnedCard: turnedCard,
+        fromColCardIdxBefore: cardIdxBefore,
+        clearedRuns: clearedRuns
+      });
+
       this.updateUI();
     }
   }
@@ -953,25 +1111,41 @@ class SpiderSolitaire {
 
     const target = bestTarget !== -1 ? bestTarget : alternateTarget;
     if (target !== -1) {
-      this.saveState();
+      const sourceCol = this.tableau[colIdx];
+      let turnedCard = false;
+      const cardIdxBefore = cardIndex - 1;
+      if (cardIdxBefore >= 0 && !sourceCol[cardIdxBefore].faceUp) {
+        turnedCard = true;
+      }
+
+      const count = sourceCol.length - cardIndex;
       this.tableau[colIdx].splice(cardIndex);
       this.tableau[target].push(...movingCards);
 
-      const sourceCol = this.tableau[colIdx];
-      if (sourceCol.length > 0 && !sourceCol[sourceCol.length - 1].faceUp) {
-        sourceCol[sourceCol.length - 1].faceUp = true;
+      if (turnedCard) {
+        sourceCol[cardIdxBefore].faceUp = true;
       }
 
       this.moves++;
-      this.score = Math.max(0, this.score - 1);
-      this.checkAndClearCompletedRuns();
+      const clearedRuns = this.checkAndClearCompletedRuns();
+
+      this.recordAction({
+        type: 'move',
+        fromCol: colIdx,
+        toCol: target,
+        count: count,
+        turnedCard: turnedCard,
+        fromColCardIdxBefore: cardIdxBefore,
+        clearedRuns: clearedRuns
+      });
+
       this.updateUI();
     }
   }
 
   updateUI() {
     this.movesCountEl.textContent = this.moves;
-    this.scoreValEl.textContent = this.score;
+    this.gamesWonValEl.textContent = this.gamesWon;
     this.renderStock();
     this.renderCompleted();
     this.renderTableau();
@@ -1052,6 +1226,10 @@ class SpiderSolitaire {
         this.savePreferences();
       };
     }
+
+    window.addEventListener('resize', () => {
+      this.renderTableau();
+    });
 
     window.addEventListener('keydown', (e) => {
       if (e.ctrlKey || e.metaKey) {
