@@ -231,6 +231,13 @@ select option {
   z-index: 99 !important;
 }
 
+.card.is-peeking {
+  z-index: 1000 !important;
+  box-shadow: 0 0 0 3px #facc15, 0 12px 28px rgba(0, 0, 0, 0.75) !important;
+  transform: scale(1.1) translateY(-14px) !important;
+  transition: transform 0.12s ease-out, box-shadow 0.12s ease-out !important;
+}
+
 .card.animating-deal {
   transition: transform var(--deal-duration) cubic-bezier(0.2, 0.8, 0.2, 1), opacity var(--deal-duration) ease-out !important;
   z-index: 200 !important;

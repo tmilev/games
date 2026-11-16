@@ -125,6 +125,20 @@ class Card {
     bottomRow.appendChild(this.createCornerElement('corner-br'));
     cardEl.appendChild(bottomRow);
 
+    // Right-click peek support for face-up cards
+    cardEl.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    cardEl.onmousedown = (e) => {
+      if (e.button === 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        gameInstance.startPeekingCard(cardEl);
+      }
+    };
+
     // Drag-and-drop & interaction
     if (gameInstance.canPickSequence(colIdx, cardIdx)) {
       cardEl.draggable = true;
@@ -172,6 +186,7 @@ class SpiderSolitaire {
     };
 
     this.draggedData = null;
+    this.peekingCardEl = null;
     this.isDealing = false;
     this.dealAnimationTimeouts = [];
     this.runAnimationTimeouts = [];
@@ -202,6 +217,19 @@ class SpiderSolitaire {
     this.animSpeedSelect = document.getElementById('animSpeedSelect');
 
     this.bindEvents();
+  }
+
+  startPeekingCard(cardEl) {
+    this.stopPeekingCard();
+    this.peekingCardEl = cardEl;
+    cardEl.classList.add('is-peeking');
+  }
+
+  stopPeekingCard() {
+    if (this.peekingCardEl) {
+      this.peekingCardEl.classList.remove('is-peeking');
+      this.peekingCardEl = null;
+    }
   }
 
   showBanner(text) {
@@ -1473,6 +1501,16 @@ class SpiderSolitaire {
 
     window.addEventListener('resize', () => {
       this.renderTableau();
+    });
+
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 2) {
+        this.stopPeekingCard();
+      }
     });
 
     window.addEventListener('keydown', (e) => {
