@@ -157,6 +157,7 @@ class SpiderSolitaire {
     this.tableau = [[], [], [], [], [], [], [], [], [], []];
     this.stock = [];
     this.completedRuns = 0;
+    this.completedRunSuits = [];
     this.moves = 0;
     this.gamesWon = this.loadGamesWon();
     this.gameWonRecorded = false;
@@ -173,6 +174,8 @@ class SpiderSolitaire {
     this.draggedData = null;
     this.isDealing = false;
     this.dealAnimationTimeouts = [];
+    this.runAnimationTimeouts = [];
+    this.flyingRunElements = [];
 
     // DOM element bindings
     this.tableauContainer = document.getElementById('tableauContainer');
@@ -181,6 +184,7 @@ class SpiderSolitaire {
     this.completedContainer = document.getElementById('completedContainer');
     this.movesCountEl = document.getElementById('movesCount');
     this.gamesWonValEl = document.getElementById('gamesWonVal');
+    this.gamesWonBadgeEl = document.getElementById('gamesWonBadge');
     this.zoomValEl = document.getElementById('zoomVal');
     this.zoomInBtn = document.getElementById('zoomInBtn');
     this.zoomOutBtn = document.getElementById('zoomOutBtn');
@@ -208,7 +212,7 @@ class SpiderSolitaire {
     }, 2500);
   }
 
-  cancelDealAnimation() {
+  cancelAnimations() {
     if (this.dealAnimationTimeouts.length > 0) {
       this.dealAnimationTimeouts.forEach((t) => {
         clearTimeout(t);
@@ -216,6 +220,25 @@ class SpiderSolitaire {
       this.dealAnimationTimeouts = [];
     }
     this.isDealing = false;
+
+    if (this.runAnimationTimeouts.length > 0) {
+      this.runAnimationTimeouts.forEach((t) => {
+        clearTimeout(t);
+      });
+      this.runAnimationTimeouts = [];
+    }
+    if (this.flyingRunElements.length > 0) {
+      this.flyingRunElements.forEach((el) => {
+        if (el && el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+      this.flyingRunElements = [];
+    }
+  }
+
+  cancelDealAnimation() {
+    this.cancelAnimations();
   }
 
   createDeck() {
@@ -281,16 +304,45 @@ class SpiderSolitaire {
   loadGamesWon() {
     try {
       const val = localStorage.getItem(GAMES_WON_KEY);
-      return val ? parseInt(val, 10) || 0 : 0;
+      if (val) {
+        // Handle migration from plain integer string to JSON object
+        if (val.trim().startsWith('{')) {
+          const parsed = JSON.parse(val);
+          return {
+            easy: parsed.easy || 0,
+            medium: parsed.medium || 0,
+            hard: parsed.hard || 0
+          };
+        } else {
+          const num = parseInt(val, 10) || 0;
+          return {
+            easy: num,
+            medium: 0,
+            hard: 0
+          };
+        }
+      }
+      return { easy: 0, medium: 0, hard: 0 };
     } catch (e) {
-      return 0;
+      return { easy: 0, medium: 0, hard: 0 };
     }
   }
 
   saveGamesWon() {
     try {
-      localStorage.setItem(GAMES_WON_KEY, String(this.gamesWon));
+      localStorage.setItem(GAMES_WON_KEY, JSON.stringify(this.gamesWon));
     } catch (e) { }
+  }
+
+  getTotalGamesWon() {
+    return (this.gamesWon.easy || 0) + (this.gamesWon.medium || 0) + (this.gamesWon.hard || 0);
+  }
+
+  getGamesWonTooltip() {
+    const e = this.gamesWon.easy || 0;
+    const m = this.gamesWon.medium || 0;
+    const h = this.gamesWon.hard || 0;
+    return `Won Games: ${e} Easy (1 suit), ${m} Medium (2 suits), ${h} Hard (4 suits)`;
   }
 
   applyAction(action, isUndo) {
@@ -302,6 +354,9 @@ class SpiderSolitaire {
             const restoredCards = run.cards.map(c => Card.fromJSON(c));
             this.tableau[run.colIdx].splice(run.startIdx, 0, ...restoredCards);
             this.completedRuns--;
+            if (this.completedRunSuits && this.completedRunSuits.length > 0) {
+              this.completedRunSuits.pop();
+            }
           });
         }
 
@@ -334,6 +389,9 @@ class SpiderSolitaire {
           action.clearedRuns.forEach((run) => {
             this.tableau[run.colIdx].splice(run.startIdx, 13);
             this.completedRuns++;
+            if (run.cards && run.cards[0] && run.cards[0].suit) {
+              this.completedRunSuits.push(run.cards[0].suit);
+            }
           });
         }
 
@@ -346,6 +404,9 @@ class SpiderSolitaire {
             const restoredCards = run.cards.map(c => Card.fromJSON(c));
             this.tableau[run.colIdx].splice(run.startIdx, 0, ...restoredCards);
             this.completedRuns--;
+            if (this.completedRunSuits && this.completedRunSuits.length > 0) {
+              this.completedRunSuits.pop();
+            }
           });
         }
 
@@ -368,6 +429,9 @@ class SpiderSolitaire {
           action.clearedRuns.forEach((run) => {
             this.tableau[run.colIdx].splice(run.startIdx, 13);
             this.completedRuns++;
+            if (run.cards && run.cards[0] && run.cards[0].suit) {
+              this.completedRunSuits.push(run.cards[0].suit);
+            }
           });
         }
         this.moves++;
@@ -382,6 +446,7 @@ class SpiderSolitaire {
         tableau: this.tableau.map(col => col.map(c => c.toJSON())),
         stock: this.stock.map(batch => batch.map(c => c.toJSON())),
         completedRuns: this.completedRuns,
+        completedRunSuits: this.completedRunSuits,
         moves: this.moves,
         moveHistory: this.moveHistory,
         redoHistory: this.redoHistory
@@ -407,6 +472,7 @@ class SpiderSolitaire {
       this.tableau = data.tableau.map(col => col.map(c => Card.fromJSON(c)));
       this.stock = (data.stock || []).map(batch => batch.map(c => Card.fromJSON(c)));
       this.completedRuns = data.completedRuns || 0;
+      this.completedRunSuits = data.completedRunSuits || [];
       this.moves = data.moves || 0;
       this.moveHistory = data.moveHistory || [];
       this.redoHistory = data.redoHistory || [];
@@ -580,6 +646,7 @@ class SpiderSolitaire {
     this.tableau = [[], [], [], [], [], [], [], [], [], []];
     this.stock = [];
     this.completedRuns = 0;
+    this.completedRunSuits = [];
     this.moves = 0;
     this.gameWonRecorded = false;
     this.moveHistory = [];
@@ -676,6 +743,7 @@ class SpiderSolitaire {
             cards: removedCards.map(card => card.toJSON())
           });
           this.completedRuns++;
+          this.completedRunSuits.push(suit);
 
           if (col.length > 0 && !col[col.length - 1].faceUp) {
             col[col.length - 1].faceUp = true;
@@ -689,15 +757,167 @@ class SpiderSolitaire {
       if (this.completedRuns === 8) {
         if (!this.gameWonRecorded) {
           this.gameWonRecorded = true;
-          this.gamesWon++;
+          if (this.difficulty === 1) {
+            this.gamesWon.easy = (this.gamesWon.easy || 0) + 1;
+          } else if (this.difficulty === 2) {
+            this.gamesWon.medium = (this.gamesWon.medium || 0) + 1;
+          } else {
+            this.gamesWon.hard = (this.gamesWon.hard || 0) + 1;
+          }
           this.saveGamesWon();
-          this.gamesWonValEl.textContent = this.gamesWon;
+          this.gamesWonValEl.textContent = this.getTotalGamesWon();
+          if (this.gamesWonBadgeEl) {
+            this.gamesWonBadgeEl.title = this.getGamesWonTooltip();
+          }
         }
-        this.winStats.textContent = `Completed in ${this.moves} moves! Total games won: ${this.gamesWon}.`;
+        const totalWon = this.getTotalGamesWon();
+        this.winStats.textContent = `Completed in ${this.moves} moves! Total games won: ${totalWon} (Easy: ${this.gamesWon.easy || 0}, Medium: ${this.gamesWon.medium || 0}, Hard: ${this.gamesWon.hard || 0}).`;
         this.winOverlay.classList.remove('hidden');
       }
     }
     return clearedRuns;
+  }
+
+  animateCompletedRuns(clearedRuns, onComplete = null) {
+    if (!clearedRuns || clearedRuns.length === 0 || this.userPrefs.animSpeed === 'instant') {
+      this.updateUI();
+      if (onComplete) {
+        onComplete();
+      }
+      return;
+    }
+
+    const speedConfig = ANIM_SPEEDS[this.userPrefs.animSpeed] || ANIM_SPEEDS['normal'];
+    const baseDurationMs = parseFloat(speedConfig.duration) * 1000 || 450;
+    const durationMs = Math.max(650, Math.round(baseDurationMs * 1.6));
+
+    // Render tableau without the cleared runs, but don't re-render completed foundations until flight ends
+    this.renderStock();
+    this.renderTableau();
+
+    clearedRuns.forEach((run, runIndex) => {
+      const colDiv = this.tableauContainer.children[run.colIdx];
+      if (!colDiv) {
+        return;
+      }
+
+      const foundationIdx = (this.completedRuns - clearedRuns.length) + runIndex;
+      const targetSlot = this.completedContainer.children[foundationIdx];
+      const targetRect = targetSlot ? targetSlot.getBoundingClientRect() : null;
+      const colRect = colDiv.getBoundingClientRect();
+
+      const stepFaceUp = parseFloat(colDiv.dataset.stepFaceUp) || 30;
+      const startTopPx = run.startIdx * stepFaceUp;
+
+      // Measure actual rendered card dimensions from column to preserve exact aspect ratio
+      const existingCards = colDiv.querySelectorAll('.card');
+      const sampleCard = existingCards.length > 0 ? existingCards[0] : null;
+      const sampleRect = sampleCard ? sampleCard.getBoundingClientRect() : null;
+      const cardWidth = sampleRect ? sampleRect.width : colRect.width;
+      const cardHeight = sampleRect ? sampleRect.height : (cardWidth * 1.4);
+
+      const tableRect = this.tableContainerEl.getBoundingClientRect();
+      const scale = (this.currentZoom || 100) / 100;
+
+      // Coordinates in tableContainer local coordinate space
+      const startX = (colRect.left - tableRect.left) / scale;
+      const startY = (colRect.top + startTopPx - tableRect.top) / scale;
+      const endX = targetRect ? (targetRect.left - tableRect.left) / scale : startX;
+      const endY = targetRect ? (targetRect.top - tableRect.top) / scale : -200;
+
+      const unscaledCardWidth = cardWidth / scale;
+      const unscaledCardHeight = cardHeight / scale;
+
+      // Create a flight container placed directly inside tableContainerEl
+      const flightContainer = document.createElement('div');
+      flightContainer.className = 'animating-completed-flight';
+      flightContainer.style.left = '0px';
+      flightContainer.style.top = '0px';
+      flightContainer.style.width = `${unscaledCardWidth}px`;
+      flightContainer.style.height = `${(12 * stepFaceUp) + unscaledCardHeight}px`;
+
+      const cardElements = [];
+      run.cards.forEach((cardData, idx) => {
+        const cardObj = Card.fromJSON(cardData);
+        const cardEl = cardObj.createDOMElement(run.colIdx, idx, this);
+        cardEl.style.position = 'absolute';
+        cardEl.style.top = `${idx * stepFaceUp}px`;
+        cardEl.style.left = '0';
+        cardEl.style.width = `${unscaledCardWidth}px`;
+        cardEl.style.height = `${unscaledCardHeight}px`;
+        flightContainer.appendChild(cardEl);
+        cardElements.push(cardEl);
+      });
+
+      this.tableContainerEl.appendChild(flightContainer);
+      this.flyingRunElements.push(flightContainer);
+
+      // Arc apex: cards arc upward into the air as they travel toward the slot
+      const arcHeight = Math.max(90, Math.min(220, Math.abs(endX - startX) * 0.35 + 80));
+      const midX = (startX + endX) / 2 + (startX > endX ? 35 : -35);
+      const midY = Math.min(startY, endY) - arcHeight;
+
+      // Curved flight path using requestAnimationFrame quadratic Bezier interpolation
+      const startTime = performance.now();
+      let animFrameId = null;
+
+      const animateStep = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / durationMs);
+
+        // Smooth ease-out progress
+        const t = 1 - Math.pow(1 - progress, 2.6);
+
+        // Quadratic Bezier interpolation: P(t) = (1-t)^2 * P0 + 2*(1-t)*t * P1 + t^2 * P2
+        const currentX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * endX;
+        const currentY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * endY;
+
+        // Dynamic bank rotation during flight
+        const bankAngle = (1 - t) * t * (startX > endX ? -16 : 16);
+
+        // Pure translate3d with rotation (zero scale distortion)
+        flightContainer.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) rotate(${bankAngle}deg)`;
+
+        // Accordion fold: as cards fly, the fan contracts smoothly into a neat deck
+        cardElements.forEach((cardEl, idx) => {
+          const initialTop = idx * stepFaceUp;
+          const targetTop = 0;
+          const currentTop = initialTop + (targetTop - initialTop) * t;
+          const cardTwist = Math.sin(t * Math.PI) * ((idx - 6) * 1.4);
+          cardEl.style.top = `${currentTop}px`;
+          cardEl.style.transform = `rotate(${cardTwist}deg)`;
+        });
+
+        if (progress < 1) {
+          animFrameId = requestAnimationFrame(animateStep);
+        }
+      };
+
+      // Kick off curved flight
+      animFrameId = requestAnimationFrame(animateStep);
+
+      const tFlight = setTimeout(() => {
+        if (animFrameId) {
+          cancelAnimationFrame(animFrameId);
+        }
+        if (flightContainer && flightContainer.parentNode) {
+          flightContainer.parentNode.removeChild(flightContainer);
+        }
+        const idx = this.flyingRunElements.indexOf(flightContainer);
+        if (idx !== -1) {
+          this.flyingRunElements.splice(idx, 1);
+        }
+
+        this.renderCompleted();
+        this.saveGameToStorage();
+
+        if (runIndex === clearedRuns.length - 1 && onComplete) {
+          onComplete();
+        }
+      }, durationMs + 25);
+
+      this.runAnimationTimeouts.push(tFlight);
+    });
   }
 
   dealStock() {
@@ -733,7 +953,10 @@ class SpiderSolitaire {
       this.renderTableau(true);
       this.saveGameToStorage();
       this.movesCountEl.textContent = this.moves;
-      this.gamesWonValEl.textContent = this.gamesWon;
+      this.gamesWonValEl.textContent = this.getTotalGamesWon();
+      if (this.gamesWonBadgeEl) {
+        this.gamesWonBadgeEl.title = this.getGamesWonTooltip();
+      }
 
       const tableScale = this.currentZoom / 100;
       const newlyDealtCards = [];
@@ -755,6 +978,7 @@ class SpiderSolitaire {
           cardEl.style.visibility = 'visible';
         });
         this.isDealing = false;
+        this.updateUI();
         return;
       }
 
@@ -784,12 +1008,19 @@ class SpiderSolitaire {
           if (idx === newlyDealtCards.length - 1) {
             this.isDealing = false;
             this.dealAnimationTimeouts = [];
+            if (clearedRuns && clearedRuns.length > 0) {
+              this.animateCompletedRuns(clearedRuns);
+            }
           }
         }, speedConfig.cleanup + idx * speedConfig.stagger);
         this.dealAnimationTimeouts.push(tCleanup);
       });
     } else {
-      this.updateUI();
+      if (clearedRuns && clearedRuns.length > 0) {
+        this.animateCompletedRuns(clearedRuns);
+      } else {
+        this.updateUI();
+      }
     }
   }
 
@@ -827,20 +1058,12 @@ class SpiderSolitaire {
       const slot = document.createElement('div');
       slot.className = 'foundation-slot';
       if (i < this.completedRuns) {
-        const symbolSpan = document.createElement('span');
-        symbolSpan.style.fontSize = '1.5rem';
-        symbolSpan.style.color = '#facc15';
-        symbolSpan.textContent = '♠';
-
-        const rankSpan = document.createElement('span');
-        rankSpan.style.fontSize = '0.8rem';
-        rankSpan.style.fontWeight = 'bold';
-        rankSpan.style.position = 'absolute';
-        rankSpan.style.bottom = '2px';
-        rankSpan.textContent = 'K-A';
-
-        slot.appendChild(symbolSpan);
-        slot.appendChild(rankSpan);
+        const suit = (this.completedRunSuits && this.completedRunSuits[i]) ? this.completedRunSuits[i] : 'spades';
+        // The top card of a completed King-to-Ace sequence is the Ace (value 1)
+        const aceCard = new Card(suit, 1, true);
+        const cardEl = aceCard.createDOMElement(-1, -1, this);
+        cardEl.draggable = false;
+        slot.appendChild(cardEl);
       }
       this.completedContainer.appendChild(slot);
     }
@@ -1079,7 +1302,16 @@ class SpiderSolitaire {
         clearedRuns: clearedRuns
       });
 
-      this.updateUI();
+      this.movesCountEl.textContent = this.moves;
+      this.gamesWonValEl.textContent = this.getTotalGamesWon();
+      if (this.gamesWonBadgeEl) {
+        this.gamesWonBadgeEl.title = this.getGamesWonTooltip();
+      }
+      if (clearedRuns && clearedRuns.length > 0) {
+        this.animateCompletedRuns(clearedRuns);
+      } else {
+        this.updateUI();
+      }
     }
   }
 
@@ -1139,13 +1371,25 @@ class SpiderSolitaire {
         clearedRuns: clearedRuns
       });
 
-      this.updateUI();
+      this.movesCountEl.textContent = this.moves;
+      this.gamesWonValEl.textContent = this.getTotalGamesWon();
+      if (this.gamesWonBadgeEl) {
+        this.gamesWonBadgeEl.title = this.getGamesWonTooltip();
+      }
+      if (clearedRuns && clearedRuns.length > 0) {
+        this.animateCompletedRuns(clearedRuns);
+      } else {
+        this.updateUI();
+      }
     }
   }
 
   updateUI() {
     this.movesCountEl.textContent = this.moves;
-    this.gamesWonValEl.textContent = this.gamesWon;
+    this.gamesWonValEl.textContent = this.getTotalGamesWon();
+    if (this.gamesWonBadgeEl) {
+      this.gamesWonBadgeEl.title = this.getGamesWonTooltip();
+    }
     this.renderStock();
     this.renderCompleted();
     this.renderTableau();

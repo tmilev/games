@@ -236,11 +236,24 @@ select option {
   z-index: 200 !important;
 }
 
+.animating-completed-flight {
+  position: absolute !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  transform-origin: top left !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  will-change: transform;
+}
+.animating-completed-flight .card {
+  max-height: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45) !important;
+}
+
 /* Card styling */
 .card {
   width: 100%;
   aspect-ratio: 5 / 7;
-  max-height: 125px;
   position: absolute;
   left: 0;
   border-radius: 6px;
@@ -315,18 +328,18 @@ select option {
   transform: rotate(180deg);
 }
 .card-rank {
-  font-size: clamp(0.72rem, 1.25vw, 0.98rem);
+  font-size: 0.95rem;
   font-weight: 800;
   line-height: 1;
 }
 .card-suit {
-  font-size: clamp(0.68rem, 1.15vw, 0.94rem);
+  font-size: 0.9rem;
   line-height: 1;
   margin-top: -1px;
 }
 .card-center {
   align-self: center;
-  font-size: clamp(0.95rem, 1.7vw, 1.4rem);
+  font-size: 1.4rem;
   line-height: 1;
 }
 
@@ -363,16 +376,27 @@ select option {
 }
 
 .foundation-slot {
-  width: clamp(50px, 7vw, 75px);
-  aspect-ratio: 5 / 7;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 6px;
-  background: rgba(0,0,0,0.2);
+  width: clamp(55px, 8vw, 85px);
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.foundation-slot:empty {
+  aspect-ratio: 5 / 7;
+  border: 2px dashed rgba(255,255,255,0.15);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.15);
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+.foundation-slot .card {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 /* Notification banner */
