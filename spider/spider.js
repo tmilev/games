@@ -151,7 +151,8 @@ class Card {
         gameInstance.onCardDragEnd(colIdx);
       };
 
-      cardEl.ondblclick = () => {
+      cardEl.ondblclick = (e) => {
+        e.stopPropagation();
         gameInstance.tryAutoMove(colIdx, cardIdx);
       };
     } else {
@@ -1198,6 +1199,18 @@ class SpiderSolitaire {
         this.handleDrop(colIdx);
       };
 
+      colDiv.ondblclick = () => {
+        const col = this.tableau[colIdx];
+        if (!col || col.length === 0) {
+          return;
+        }
+        let rootIdx = col.length - 1;
+        while (rootIdx > 0 && this.canPickSequence(colIdx, rootIdx - 1)) {
+          rootIdx--;
+        }
+        this.tryAutoMove(colIdx, rootIdx);
+      };
+
       const { offsets, stepFaceUp, totalHeight } = this.computeColumnOffsets(colCards);
       colDiv.dataset.stepFaceUp = stepFaceUp;
 
@@ -1347,11 +1360,13 @@ class SpiderSolitaire {
     if (!this.canPickSequence(colIdx, cardIndex)) {
       return;
     }
-    const movingCards = this.tableau[colIdx].slice(cardIndex);
+    const sourceCol = this.tableau[colIdx];
+    const movingCards = sourceCol.slice(cardIndex);
     const topMoving = movingCards[0];
 
-    let bestTarget = -1;
-    let alternateTarget = -1;
+    let sameSuitNonEmptyTarget = -1;
+    let diffSuitNonEmptyTarget = -1;
+    let emptyColTarget = -1;
 
     for (let c = 0; c < 10; c++) {
       if (c === colIdx) {
@@ -1359,21 +1374,38 @@ class SpiderSolitaire {
       }
       if (this.canDropOnCol(topMoving, c)) {
         const targetCol = this.tableau[c];
-        if (targetCol.length > 0 && targetCol[targetCol.length - 1].suit === topMoving.suit) {
-          bestTarget = c;
-          break;
-        }
-        if (alternateTarget === -1) {
-          alternateTarget = c;
+        if (targetCol.length > 0) {
+          const targetTop = targetCol[targetCol.length - 1];
+          if (targetTop.suit === topMoving.suit) {
+            if (sameSuitNonEmptyTarget === -1) {
+              sameSuitNonEmptyTarget = c;
+            }
+          } else {
+            if (diffSuitNonEmptyTarget === -1) {
+              diffSuitNonEmptyTarget = c;
+            }
+          }
+        } else {
+          if (emptyColTarget === -1) {
+            emptyColTarget = c;
+          }
         }
       }
     }
 
-    const target = bestTarget !== -1 ? bestTarget : alternateTarget;
+    // Prioritize putting on another card (same suit first, then different suit) before empty columns
+    let target = -1;
+    if (sameSuitNonEmptyTarget !== -1) {
+      target = sameSuitNonEmptyTarget;
+    } else if (diffSuitNonEmptyTarget !== -1) {
+      target = diffSuitNonEmptyTarget;
+    } else if (emptyColTarget !== -1) {
+      target = emptyColTarget;
+    }
+
     if (target !== -1) {
-      const sourceCol = this.tableau[colIdx];
-      let turnedCard = false;
       const cardIdxBefore = cardIndex - 1;
+      let turnedCard = false;
       if (cardIdxBefore >= 0 && !sourceCol[cardIdxBefore].faceUp) {
         turnedCard = true;
       }
